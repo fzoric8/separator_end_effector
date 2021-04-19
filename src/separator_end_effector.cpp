@@ -9,6 +9,7 @@
 #include <tf/tf.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
+#include <std_srvs/Trigger.h>
 #include "separator_end_effector/separator_service.h"
 #include "dynamixel_workbench_msgs/DynamixelCommand.h"
 ros::ServiceClient client;
@@ -168,6 +169,29 @@ bool service_callback(separator_end_effector::separator_service::Request &req,
 
 }
 
+bool closingServiceCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res){
+
+    if (set_speed_with_limited_torque_to_dynamixel(motor1_id, driving_speed, driving_torque))
+        motor1_state=closing;
+    if (set_speed_with_limited_torque_to_dynamixel(motor2_id, driving_speed, driving_torque))
+        motor2_state=closing;
+
+    res.success = true;
+    return true;
+
+}
+
+bool openingServiceCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res){
+
+    if (set_speed_with_limited_torque_to_dynamixel(motor1_id, driving_speed+1024, driving_torque))
+        motor1_state=openning;
+    if (set_speed_with_limited_torque_to_dynamixel(motor2_id, driving_speed+1024, driving_torque))
+        motor2_state=openning;
+
+    res.success = true;
+    return true;
+}
+
 
 
 bool CheckState(end_effector_motor_state state, int id)
@@ -211,7 +235,7 @@ int main (int argc, char** argv){
     nh_ns.param("tightening_speed", tightening_speed, 10);
     nh_ns.param("tightening_torque", tightening_torque, 300);
 
-std::cout<<"motor id "<<motor1_id<<" "<<motor2_id<<std::endl;
+    std::cout<<"motor id "<<motor1_id<<" "<<motor2_id<<std::endl;
     // client for dynamixel service
     client = nh.serviceClient<dynamixel_workbench_msgs::DynamixelCommand>(dynamixel_service);
 
@@ -219,6 +243,10 @@ std::cout<<"motor id "<<motor1_id<<" "<<motor2_id<<std::endl;
 
     //set service callback
     ros::ServiceServer service = nh.advertiseService(tool_service, service_callback);
+
+    // set Close/Open serviceServer
+    ros::ServiceServer closeService = nh.advertise("tool_service/close_both", closingServiceCallback);
+    ros::ServiceServer openService = nh.advertise("tool_service/open_both", openingServiceCallback);
 
 
     ros::Rate loop_rate(100);
